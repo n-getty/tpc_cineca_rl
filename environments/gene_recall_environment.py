@@ -86,17 +86,21 @@ _GENE_SYMBOL_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,9})\b")
 _ANCHOR_RE = re.compile(r"(?i)gene\s+symbols\s*:")
 
 
-def _extract_genes(text: str) -> set[str]:
-    """Extract HGNC gene symbols from model output.
+def _extract_genes_from_response(text: str) -> set[str]:
+    """Extract HGNC gene symbols from the structured ``Gene symbols: ...`` anchor line.
 
-    Prefers the structured ``Gene symbols: ...`` anchor line emitted by the
-    prompted model; falls back to scanning the full response if absent.
+    Returns an empty set if the anchor is absent, so responses that echo the
+    prompt or omit the required format receive zero reward.
     """
     for line in text.splitlines():
         if _ANCHOR_RE.match(line):
-            text = line.split(":", 1)[1]
-            break
+            candidates = _GENE_SYMBOL_RE.findall(line.split(":", 1)[1])
+            return {g for g in candidates if g not in _STOP_WORDS}
+    return set()
 
+
+def _extract_genes_from_reference(text: str) -> set[str]:
+    """Extract HGNC gene symbols from a plain comma-separated ground-truth string."""
     candidates = _GENE_SYMBOL_RE.findall(text)
     return {g for g in candidates if g not in _STOP_WORDS}
 
@@ -169,8 +173,8 @@ class GeneRecallEnvironment(EnvironmentInterface[GeneRecallMetadata]):
                 for msg in conversation
                 if msg["role"] == "assistant"
             )
-            predicted = _extract_genes(response)
-            reference = _extract_genes(meta["ground_truth"])
+            predicted = _extract_genes_from_response(response)
+            reference = _extract_genes_from_reference(meta["ground_truth"])
             rewards.append(self._score(predicted, reference))
 
         reward_tensor = torch.tensor(rewards, dtype=torch.float32)
