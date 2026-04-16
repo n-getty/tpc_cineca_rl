@@ -113,6 +113,12 @@ to the `ENV_REGISTRY` dict:
 },
 ```
 
+Add this line to the ACTOR_ENVIRONMENT_REGISTRY in `nemo_rl/distributed/ray_actor_environment_registry.py`
+
+```
+"nemo_rl.environments.gene_recall_environment.GeneRecallEnvironment": PY_EXECUTABLES.SYSTEM,
+```
+
 ---
 
 ## Step 3 — Launch GRPO training
